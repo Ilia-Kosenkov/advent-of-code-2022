@@ -5,7 +5,7 @@ So far, for tasks that have lengthy inputs, the goal is to compute everything in
 
 ### How to run it?
 
-Get your input puzzle into, e.g. a file named `input.txt`, and send it to the `stdin` of the binary. When using `pwsh`, it can be done like this
+Get your input puzzle into, e.g., a file named `input.txt` and send it to the `stdin` of the binary. When using `pwsh`, it can be done like this
 
 ```pwsh
 cat input.txt | cargo run
