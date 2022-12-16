@@ -31,8 +31,8 @@ struct KnownRound {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct UnknownRound {
-    opponent_hand : OpponentHand,
-    round_result : RoundResult
+    opponent_hand: OpponentHand,
+    round_result: RoundResult,
 }
 
 impl KnownRound {
@@ -41,8 +41,8 @@ impl KnownRound {
         use RoundResult::*;
 
         match (self.my_hand.0, self.opponent_hand.0) {
-            (Rock, Paper) => RoundResult::Loss,
-            (Rock, Scissors) => RoundResult::Win,
+            (Rock, Paper) => Loss,
+            (Rock, Scissors) => Win,
 
             (Paper, Rock) => Win,
             (Paper, Scissors) => Loss,
@@ -50,11 +50,31 @@ impl KnownRound {
             (Scissors, Rock) => Loss,
             (Scissors, Paper) => Win,
 
-            _ => Draw
+            _ => Draw,
         }
     }
 }
 
+impl UnknownRound {
+    fn pick_hand(&self) -> Hand {
+        use Hand::*;
+        use RoundResult::*;
+
+        match self.round_result {
+            Win => match self.opponent_hand.0 {
+                Rock => Paper,
+                Paper => Scissors,
+                Scissors => Rock,
+            },
+            Loss => match self.opponent_hand.0 {
+                Rock => Scissors,
+                Paper => Rock,
+                Scissors => Paper,
+            },
+            Draw => self.opponent_hand.0,
+        }
+    }
+}
 
 impl FromStr for OpponentHand {
     type Err = ();
@@ -104,26 +124,58 @@ impl FromStr for RoundResult {
     }
 }
 
-fn main() {
-    let reader = io::BufReader::new(io::stdin());
-    let rounds = reader
-        .lines()
-        .filter_map(|l| {
-            l.ok().and_then(|s| {
-                s[..1].parse::<OpponentHand>().ok().and_then(|op_h| {
-                    s[2..].parse::<MyHand>().ok().and_then(|my_h| {
-                        Some(KnownRound {
-                            opponent_hand: op_h,
-                            my_hand: my_h,
-                        })
-                    })
+impl FromStr for KnownRound {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s[..1].parse::<OpponentHand>().and_then(|op_h| {
+            s[2..].parse::<MyHand>().and_then(|my_h| {
+                Ok(KnownRound {
+                    opponent_hand: op_h,
+                    my_hand: my_h,
                 })
             })
-        });
+        })
+    }
+}
 
-    let scores = rounds.map(|r| r.play() as i32 + r.my_hand.0 as i32);
+impl FromStr for UnknownRound {
+    type Err = ();
 
-    let total_score : i32 = scores.sum();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s[..1].parse::<OpponentHand>().and_then(|op_h| {
+            s[2..].parse::<RoundResult>().and_then(|res| {
+                Ok(UnknownRound {
+                    opponent_hand: op_h,
+                    round_result: res,
+                })
+            })
+        })
+    }
+}
 
-    println!("{}", total_score);
+fn main() {
+    let reader = io::BufReader::new(io::stdin());
+    let rounds = reader.lines().filter_map(|l| {
+        let l = l.map_err(|_| ());
+        l.and_then(
+            |s| match (s.parse::<KnownRound>(), s.parse::<UnknownRound>()) {
+                (Ok(known), Ok(unknown)) => Ok((known, unknown)),
+                _ => Err(()),
+            },
+        )
+        .ok()
+    });
+
+    let scores = rounds.map(|r| {
+        (
+            r.0.play() as i32 + r.0.my_hand.0 as i32,
+            r.1.pick_hand() as i32 + r.1.round_result as i32,
+        )
+    });
+
+    let total_score = scores.fold((0, 0), |(acc1, acc2), (r1, r2)| (acc1 + r1, acc2 + r2));
+
+    println!("{}", total_score.0);
+    println!("{}", total_score.1);
 }
