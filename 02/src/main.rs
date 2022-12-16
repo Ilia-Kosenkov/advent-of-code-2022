@@ -37,41 +37,24 @@ struct UnknownRound {
 
 impl KnownRound {
     fn play(&self) -> RoundResult {
-        use Hand::*;
         use RoundResult::*;
 
-        match (self.my_hand.0, self.opponent_hand.0) {
-            (Rock, Paper) => Loss,
-            (Rock, Scissors) => Win,
-
-            (Paper, Rock) => Win,
-            (Paper, Scissors) => Loss,
-
-            (Scissors, Rock) => Loss,
-            (Scissors, Paper) => Win,
-
-            _ => Draw,
+        match self.my_hand.0 as i32 - self.opponent_hand.0 as i32 {
+            0 => Draw,
+            1 | -2 => Win,
+            _ => Loss
         }
     }
 }
 
 impl UnknownRound {
-    fn pick_hand(&self) -> Hand {
-        use Hand::*;
+    fn get_best_hand_score(&self) -> i32 {
         use RoundResult::*;
 
         match self.round_result {
-            Win => match self.opponent_hand.0 {
-                Rock => Paper,
-                Paper => Scissors,
-                Scissors => Rock,
-            },
-            Loss => match self.opponent_hand.0 {
-                Rock => Scissors,
-                Paper => Rock,
-                Scissors => Paper,
-            },
-            Draw => self.opponent_hand.0,
+            Win => (self.opponent_hand.0 as i32) % 3i32 + 1i32,
+            Loss => (self.opponent_hand.0 as i32 + 1i32) % 3i32 + 1i32,
+            Draw => self.opponent_hand.0 as i32,
         }
     }
 }
@@ -170,7 +153,7 @@ fn main() {
     let scores = rounds.map(|r| {
         (
             r.0.play() as i32 + r.0.my_hand.0 as i32,
-            r.1.pick_hand() as i32 + r.1.round_result as i32,
+            r.1.get_best_hand_score() as i32 + r.1.round_result as i32,
         )
     });
 
