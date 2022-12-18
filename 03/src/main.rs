@@ -82,7 +82,7 @@ fn main() {
     let sum = priorities.fold((0i32, 0i32), |acc, (c, r1, r2, r3)| {
         (
             acc.0 + c,
-            acc.1 + r1.iter().sum::<i32>() + r2.iter().sum::<i32>() + r3.iter().sum::<i32>(),
+            acc.1 + r1.iter().chain(r2.iter()).chain(r3.iter()).sum::<i32>(),
         )
     });
 
