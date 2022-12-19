@@ -13,3 +13,4 @@ cat input.txt | cargo run
 
 - [Task 1](./01)
 - [Task 2](./02)
+- [Task 3](./03)
