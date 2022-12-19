@@ -39,7 +39,7 @@ fn main() {
 }
 
 fn are_all_unique(window: &Window<char>) -> bool {
-    let mut set = HashSet::<char>::with_capacity(4);
+    let mut set = HashSet::<char>::new();
     for c in window {
         if !set.insert(*c) {
             return false;
