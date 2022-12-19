@@ -9,7 +9,8 @@ use sliding_windows::{IterExt, Storage, Window};
 fn unit<T>(_: T) {}
 
 fn main() {
-    let mut storage = Storage::<char>::new(4);
+    let size = 14;
+    let mut storage = Storage::<char>::new(size);
 
     let reader = io::BufReader::new(io::stdin());
     let result = reader
@@ -23,7 +24,7 @@ fn main() {
                 .enumerate()
                 .filter_map(|(i, w)| {
                     if are_all_unique(&w) {
-                        Some(i + 4)
+                        Some(i + size)
                     } else {
                         None
                     }
