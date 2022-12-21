@@ -1,7 +1,6 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     io::{self, BufRead},
-    ops::Add,
     str::FromStr,
 };
 
@@ -23,36 +22,31 @@ struct File {
 
 #[derive(Debug)]
 enum Command {
-    Ls,
     Cd { path: String },
 }
 
 #[derive(Debug)]
 enum Item {
     File { name: String, size: usize },
-    Dir { name: String },
 }
 
 #[derive(Debug)]
 enum Input {
     Command(Command),
     Item(Item),
+    Discard,
 }
 
 impl FromStr for Input {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("$ ls") {
-            Ok(Input::Command(Command::Ls))
-        } else if s.starts_with("$ cd") {
+        if s.starts_with("$ cd") {
             Ok(Input::Command(Command::Cd {
                 path: s[4..].trim().to_string(),
             }))
-        } else if s.starts_with("dir") {
-            Ok(Input::Item(Item::Dir {
-                name: s[3..].trim().to_string(),
-            }))
+        } else if s.starts_with("dir") || s.starts_with("$ ls") {
+            Ok(Input::Discard)
         } else {
             let mut split = s.trim().split_whitespace();
             let size = split.next().and_then(|s| s.parse::<usize>().ok());
@@ -70,6 +64,10 @@ impl FromStr for Input {
 }
 
 fn main() {
+    const THRESHOLD: usize = 100_000;
+    const MAX_CAPACITY: usize = 70_000_000;
+    const REQUIRED_CAPACITY: usize = 30_000_000;
+
     let reader = io::BufReader::new(io::stdin());
     let input = reader
         .lines()
@@ -77,37 +75,50 @@ fn main() {
 
     let result = build_fs_tree(input);
 
-    let test = result.unwrap();
-    dbg! { &test };
+    if let Ok(result) = result {
+        let files = result
+            .iter()
+            .flat_map(|f| {
+                get_folders(f)
+                    .into_iter()
+                    .map(|d| FileInDir {
+                        file: f.clone(),
+                        dir_path: d,
+                    })
+                    .collect_vec()
+            })
+            .collect::<Vec<_>>();
 
-    let files = test
-        .iter()
-        .flat_map(|f| {
-            get_folders(f)
-                .into_iter()
-                .map(|d| FileInDir {
-                    file: f.clone(),
-                    dir_path: d,
-                })
-                .collect_vec()
-        })
-        .collect::<Vec<_>>();
+        let mut dir_sizes = HashMap::<&str, usize>::new();
 
-    let mut dir_sizes = HashMap::<&str, usize>::new();
+        for file_in_dir in files {
+            let entry = dir_sizes.entry(file_in_dir.dir_path);
+            *entry.or_default() += file_in_dir.file.size;
+        }
 
-    for file_in_dir in files {
-        let entry = dir_sizes.entry(file_in_dir.dir_path);
-        *entry.or_default() += file_in_dir.file.size;
+        let small_dirs_size = total_size(dir_sizes.iter(), |(_, size)| **size <= THRESHOLD);
+        let total_size = dir_sizes[""];
+        let available = MAX_CAPACITY - total_size;
+        let deficit = REQUIRED_CAPACITY - available;
+
+        let smallest_dir = dir_sizes
+            .iter()
+            .filter_map(|(_, size)| if *size >= deficit { Some(*size) } else { None })
+            .sorted()
+            .next();
+
+        println!("{}", small_dirs_size);
+        println!("{}", smallest_dir.unwrap_or(<usize>::MAX));
     }
+}
 
-    let small_dirs = dir_sizes
-        .into_iter()
-        .filter(|(_, size)| *size <= 100000)
-        .collect_vec();
-    let sum = small_dirs.iter().map(|(_, size)| size).sum::<usize>();
-
-    dbg! { &small_dirs };
-    println!("{}", sum);
+fn total_size<'a, 'b, T, F>(dirs: T, predicate: F) -> usize
+where
+    'b: 'a,
+    T: Iterator<Item = (&'a &'b str, &'a usize)>,
+    F: FnMut(&(&&str, &usize)) -> bool,
+{
+    dirs.filter(predicate).map(|x| x.1).sum::<usize>()
 }
 
 fn build_fs_tree<T: Iterator<Item = Result<Input, ()>>>(input: T) -> Result<Vec<File>, ()> {
@@ -139,6 +150,9 @@ fn build_fs_tree<T: Iterator<Item = Result<Input, ()>>>(input: T) -> Result<Vec<
 
 fn change_path(current_path: &mut String, path: &str) {
     if current_path.is_empty() {
+        if path != "/" {
+            current_path.push('/')
+        }
         current_path.push_str(path);
     } else if path == ".." {
         while let Some(char) = current_path.pop() {
