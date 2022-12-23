@@ -1,10 +1,11 @@
 use std::{
     collections::HashSet,
+    fmt::Debug,
     io::{self, BufRead},
     str::FromStr,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, Hash)]
 struct Pos(i32, i32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,9 +36,16 @@ impl Into<PosChange> for Direction {
     }
 }
 
+impl Debug for Pos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("({}, {})", &self.0, &self.1))
+    }
+}
+
 impl Pos {
     fn start() -> Pos {
-        std::default::Default::default()
+        Pos(11, 5)
+        //std::default::Default::default()
     }
 
     fn move_towards(&mut self, to: &Pos) {
@@ -47,9 +55,12 @@ impl Pos {
         if abs_d.0 + abs_d.1 == 3 {
             self.0 += d.0.signum();
             self.1 += d.1.signum();
-        } else if abs_d.0 == 2 {
+            return;
+        }
+        if abs_d.0 == 2 {
             self.0 += d.0.signum();
-        } else if abs_d.1 == 2 {
+        }
+        if abs_d.1 == 2 {
             self.1 += d.1.signum();
         }
     }
@@ -119,16 +130,19 @@ fn main() {
         _ => std::iter::repeat(PosChange::default()).take(0usize),
     });
 
-    let mut head = Pos::start();
-    let mut tail = Pos::start();
+    let n = 10;
+    let mut rope: Vec<Pos> = std::iter::repeat_with(|| Pos::start()).take(n).collect();
 
     let mut history = HashSet::<Pos>::new();
-    history.insert(tail);
+    history.insert(rope[n - 1]);
 
     for pos_change in pos_changes {
-        head.r#move(&pos_change);
-        tail.move_towards(&head);
-        history.insert(tail);
+        rope[0].r#move(&pos_change);
+        for i in 1..n {
+            let to = rope[i - 1];
+            rope[i].move_towards(&to);
+        }
+        history.insert(rope[n - 1]);
     }
 
     println!("{}", history.len());
