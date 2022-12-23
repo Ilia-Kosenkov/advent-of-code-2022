@@ -101,8 +101,8 @@ where
     T: Iterator<Item = &'a u8>,
     U: Iterator<Item = &'a mut bool>,
 {
-    let mut iter = forest.into_iter().zip(visibility);
-    let mut max_height = *iter.by_ref().next().unwrap().0;
+    let mut iter = forest.zip(visibility);
+    let mut max_height = iter.by_ref().next().map(|(&x, _)| x).unwrap_or_default();
 
     for (f, v) in iter {
         if *f > max_height {
