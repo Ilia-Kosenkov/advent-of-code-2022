@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
     io::{self, BufRead},
+    iter::repeat,
     str::FromStr,
 };
 
@@ -59,7 +60,9 @@ fn main() {
     let reader = io::BufReader::new(io::stdin());
     let input = reader
         .lines()
-        .map(|l| l.map_err(unit).and_then(|s| s.parse::<Command>()));
+        .map(|l| l.map_err(unit).and_then(|s| s.parse::<Command>()))
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
 
     let cycles = HashSet::<i32>::from_iter(vec![20, 60, 100, 140, 180, 220]);
 
@@ -68,9 +71,19 @@ fn main() {
     let mut state = 1;
     let mut cycle = 1;
 
-    for cmd in input.map(|cmd| cmd.unwrap()) {
-        state = cmd.new_state(state);
-        cycle += cmd.n_cycles();
+    let mut buffer = repeat('.').take(240).collect_vec();
+
+    for cmd in input.iter() {
+        let new_state = cmd.new_state(state);
+        let new_cycle = cycle + cmd.n_cycles();
+
+        set_pixel(&mut buffer, cycle, state);
+        if let Command::AddX(_) = cmd {
+            set_pixel(&mut buffer, cycle + 1, state);
+        }
+
+        state = new_state;
+        cycle = new_cycle;
 
         if let Some(mark_cycle) = cycles.get(&cycle).or_else(|| cycles.get(&(cycle + 1))) {
             results.insert(*mark_cycle, state);
@@ -79,4 +92,21 @@ fn main() {
 
     let sum = results.iter().map(|(k, v)| k * v).sum::<i32>();
     println!("{}", sum);
+
+    draw(&buffer);
+}
+
+fn draw(display: &Vec<char>) {
+    for line in display.iter().chunks(40).into_iter() {
+        let line = line.collect::<String>();
+        println!("{}", line);
+    }
+}
+
+fn set_pixel(buffer: &mut Vec<char>, cycle: i32, state: i32) {
+    let cycle = cycle - 1;
+
+    if (cycle % 40 - state).abs() <= 1 {
+        buffer[cycle as usize] = '#';
+    }
 }
